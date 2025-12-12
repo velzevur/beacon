@@ -48,4 +48,25 @@ defmodule Beacon.Template do
   defp choose_template(_, nil, primary), do: primary
   defp choose_template([{weight, template} | _], n, _) when weight >= n, do: template
   defp choose_template([{weight, _} | variants], n, primary), do: choose_template(variants, n - weight, primary)
+
+  @doc """
+  Returns all assigns for a page.
+
+  Include LiveData associated with that page and the `@beacon` assigns from `Beacon.Web.BeaconAssigns`.
+  """
+  @spec assigns(Beacon.Page.t()) :: map()
+  def assigns(%Beacon.Content.Page{} = page) do
+    path_info = for segment <- String.split(page.path, "/"), segment != "", do: segment
+    live_data = Beacon.Web.DataSource.live_data(page.site, path_info, %{})
+    beacon_assigns = Beacon.Web.BeaconAssigns.new(page, path_info: path_info)
+    route_assigns = Beacon.Private.route_assigns(page.site, page.path)
+
+    route_assigns
+    # live data should overwrite on_mount assigns in case of a name conflict
+    |> Map.merge(live_data)
+    |> Map.put(:beacon, beacon_assigns)
+    # TODO: remove deprecated @beacon_live_data
+    |> Map.put(:beacon_live_data, live_data)
+    |> Map.put_new(:__changed__, %{})
+  end
 end
