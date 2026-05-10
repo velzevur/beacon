@@ -80,6 +80,40 @@ defmodule Beacon.Template.ParserTest do
       assert el.tag == "img"
       assert el.attrs["src"] == "photo.jpg"
     end
+
+    test "void element without self-closing slash" do
+      [el, text] = Parser.parse(~s(<img src="photo.jpg">After))
+
+      assert el.tag == "img"
+      assert el.attrs["src"] == "photo.jpg"
+      assert text == %{type: :text, value: "After"}
+    end
+
+    test "boolean attributes" do
+      [el] = Parser.parse(~s(<input disabled required>))
+
+      assert el.attrs["disabled"] == ""
+      assert el.attrs["required"] == ""
+    end
+
+    test "unquoted and braced dynamic attributes" do
+      [link] = Parser.parse(~s(<a :href={post.url} target=_blank>Link</a>))
+
+      assert %{type: :expression, path: "post.url"} = link.attrs["href"]
+      assert link.attrs["target"] == "_blank"
+    end
+
+    test "comments and declarations are ignored" do
+      assert [%{type: :element, tag: "main"}] =
+               Parser.parse("<!doctype html><!-- admin note --><main>Body</main>")
+    end
+
+    test "raw text elements do not parse nested markup" do
+      [el] = Parser.parse("<script>if (a < b) { console.log(\"ok\") }</script>")
+
+      assert el.tag == "script"
+      assert [%{type: :text, value: "if (a < b) { console.log(\"ok\") }"}] = el.children
+    end
   end
 
   describe "conditionals" do
@@ -101,10 +135,12 @@ defmodule Beacon.Template.ParserTest do
     end
 
     test ":if/:else" do
-      result = Parser.parse("""
-      <div :if="show">Yes</div>
-      <div :else>No</div>
-      """)
+      result =
+        Parser.parse("""
+        <div :if="show">Yes</div>
+
+        <div :else>No</div>
+        """)
 
       assert [cond_node] = result
       assert cond_node.type == :conditional
@@ -113,11 +149,12 @@ defmodule Beacon.Template.ParserTest do
     end
 
     test ":if/:else-if/:else" do
-      result = Parser.parse("""
-      <span :if="status == 'published'">Live</span>
-      <span :else-if="status == 'draft'">Draft</span>
-      <span :else>Unknown</span>
-      """)
+      result =
+        Parser.parse("""
+        <span :if="status == 'published'">Live</span>
+        <span :else-if="status == 'draft'">Draft</span>
+        <span :else>Unknown</span>
+        """)
 
       assert [cond_node] = result
       assert cond_node.type == :conditional
@@ -142,9 +179,10 @@ defmodule Beacon.Template.ParserTest do
 
   describe "loops" do
     test "simple :for" do
-      [loop_node] = Parser.parse("""
-      <div :for="post in posts"><span>{{ post.title }}</span></div>
-      """)
+      [loop_node] =
+        Parser.parse("""
+        <div :for="post in posts"><span>{{ post.title }}</span></div>
+        """)
 
       assert loop_node.type == :loop
       assert loop_node.iterator == "post"
@@ -153,9 +191,10 @@ defmodule Beacon.Template.ParserTest do
     end
 
     test ":for with nested interpolation" do
-      [loop_node] = Parser.parse("""
-      <li :for="item in items">{{ item.name }}</li>
-      """)
+      [loop_node] =
+        Parser.parse("""
+        <li :for="item in items">{{ item.name }}</li>
+        """)
 
       assert loop_node.iterator == "item"
       [el] = loop_node.children
@@ -165,12 +204,13 @@ defmodule Beacon.Template.ParserTest do
 
   describe "fragments" do
     test "template element as fragment" do
-      result = Parser.parse("""
-      <template :if="show">
-        <h1>Title</h1>
-        <p>Body</p>
-      </template>
-      """)
+      result =
+        Parser.parse("""
+        <template :if="show">
+          <h1>Title</h1>
+          <p>Body</p>
+        </template>
+        """)
 
       assert [cond_node] = result
       assert cond_node.type == :conditional
@@ -180,12 +220,13 @@ defmodule Beacon.Template.ParserTest do
     end
 
     test "template :for as fragment" do
-      [loop_node] = Parser.parse("""
-      <template :for="item in items">
-        <dt>{{ item.term }}</dt>
-        <dd>{{ item.def }}</dd>
-      </template>
-      """)
+      [loop_node] =
+        Parser.parse("""
+        <template :for="item in items">
+          <dt>{{ item.term }}</dt>
+          <dd>{{ item.def }}</dd>
+        </template>
+        """)
 
       assert loop_node.type == :loop
       [frag] = loop_node.children
@@ -212,22 +253,43 @@ defmodule Beacon.Template.ParserTest do
 
   describe "complex templates" do
     test "blog listing pattern" do
-      result = Parser.parse("""
-      <main>
-        <h1 :if="filter == 'all'">Blog</h1>
-        <h1 :else>{{ pretty_filter }}</h1>
-        <div :for="post in past_posts">
-          <h3>{{ post.title }}</h3>
-          <p>{{ post.published_at | format_date: "%B %d, %Y" }}</p>
-        </div>
-      </main>
-      """)
+      result =
+        Parser.parse("""
+        <main>
+          <h1 :if="filter == 'all'">Blog</h1>
+          <h1 :else>{{ pretty_filter }}</h1>
+          <div :for="post in past_posts">
+            <h3>{{ post.title }}</h3>
+            <p>{{ post.published_at | format_date: "%B %d, %Y" }}</p>
+          </div>
+        </main>
+        """)
 
       assert [main] = result
       assert main.tag == "main"
       # First child should be a conditional (the h1 if/else)
-      [cond_node | rest] = main.children |> Enum.reject(&match?(%{type: :text, value: "\n"}, &1))
+      [cond_node | _rest] = main.children |> Enum.reject(&match?(%{type: :text, value: "\n"}, &1))
       assert cond_node.type == :conditional
+    end
+  end
+
+  describe "parse errors" do
+    test "raises on mismatched closing tags" do
+      assert_raise Beacon.Template.ParseError, ~r/expected closing tag <\/span>, got <\/div>/, fn ->
+        Parser.parse("<span>Broken</div>")
+      end
+    end
+
+    test "raises on missing closing tags" do
+      assert_raise Beacon.Template.ParseError, ~r/missing closing tag <\/section>/, fn ->
+        Parser.parse("<section><p>Broken</p>")
+      end
+    end
+
+    test "raises on unclosed interpolations" do
+      assert_raise Beacon.Template.ParseError, ~r/unterminated interpolation/, fn ->
+        Parser.parse("<p>{{ title</p>")
+      end
     end
   end
 end

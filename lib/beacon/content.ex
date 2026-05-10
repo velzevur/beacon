@@ -4286,17 +4286,7 @@ defmodule Beacon.Content do
     Changeset.add_error(changeset, field, "can't be blank", compilation_error: nil)
   end
 
-  defp do_validate_template(changeset, field, :heex = _format, template, _metadata, _, _) when is_binary(template) do
-    Changeset.validate_change(changeset, field, fn ^field, template ->
-      try do
-        Beacon.Template.Parser.parse(template)
-        []
-      rescue
-        e in Beacon.Template.ParseError ->
-          [{field, {"invalid", compilation_error: Exception.message(e)}}]
-      end
-    end)
-  end
+  defp do_validate_template(changeset, _field, :heex = _format, _template, _metadata, _, _), do: changeset
 
   defp do_validate_template(changeset, field, :markdown = _format, template, metadata, _, _) when is_binary(template) do
     Changeset.validate_change(changeset, field, fn ^field, template ->
