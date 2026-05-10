@@ -1,7 +1,7 @@
-defmodule Beacon.TemplateType.MetaTagResolverTest do
+defmodule Beacon.Collection.MetaTagResolverTest do
   use ExUnit.Case, async: true
 
-  alias Beacon.TemplateType.MetaTagResolver
+  alias Beacon.Collection.MetaTagResolver
 
   @config %{site_name: "Test Site", site: :test_site}
 

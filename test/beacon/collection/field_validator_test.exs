@@ -1,7 +1,7 @@
-defmodule Beacon.TemplateType.FieldValidatorTest do
+defmodule Beacon.Collection.FieldValidatorTest do
   use ExUnit.Case, async: true
 
-  alias Beacon.TemplateType.FieldValidator
+  alias Beacon.Collection.FieldValidator
 
   defp changeset_with_fields(fields) do
     types = %{fields: :map}

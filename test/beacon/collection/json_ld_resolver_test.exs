@@ -1,7 +1,7 @@
-defmodule Beacon.TemplateType.JsonLdResolverTest do
+defmodule Beacon.Collection.JsonLdResolverTest do
   use ExUnit.Case, async: true
 
-  alias Beacon.TemplateType.JsonLdResolver
+  alias Beacon.Collection.JsonLdResolver
 
   @config %{site_name: "Test Site", site: :test_site}
 
