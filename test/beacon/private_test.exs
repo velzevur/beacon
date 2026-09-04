@@ -10,4 +10,9 @@ defmodule Beacon.PrivateTest do
   test "router assigns" do
     assert Beacon.Private.route_assigns(default_site(), "/on_mount") == %{on_mount_var: "on_mount_test"}
   end
+
+  test "reads endpoint configuration from the application environment" do
+    assert [url: [host: "site_a.com", port: 4001]] =
+             Beacon.Private.endpoint_config(:beacon, Beacon.BeaconTest.Endpoint)
+  end
 end

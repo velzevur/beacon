@@ -63,7 +63,10 @@ defmodule Beacon.Private do
   end
 
   def endpoint_config(otp_app, endpoint) do
-    Phoenix.Endpoint.Supervisor.config(otp_app, endpoint)
+    # Phoenix 1.8 no longer exposes configuration through
+    # Phoenix.Endpoint.Supervisor.config/2. Endpoint configuration is already
+    # available in the application environment at this point.
+    Application.get_env(otp_app, endpoint, [])
   end
 
   def endpoint_host(otp_app, endpoint) do
